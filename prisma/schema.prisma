@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  OPERATOR
+  SUPERVISOR
+  MAINTENANCE
+  HSE
+  ADMIN
+}
+
+enum FormStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum InspectionAnswerStatus {
+  OK
+  ISSUE
+  NOT_APPLICABLE
+}
+
+enum FindingStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+model User {
+  id          String       @id @default(cuid())
+  name        String
+  email       String?      @unique
+  role        UserRole     @default(OPERATOR)
+  area        String?
+  inspections Inspection[]
+  findings    Finding[]    @relation("FindingResponsible")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model FormTemplate {
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  title       String
+  sourceFile  String?
+  area        String?
+  section     String?
+  equipment   String?
+  cadence     String?
+  status      FormStatus   @default(DRAFT)
+  items       FormItem[]
+  inspections Inspection[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model FormItem {
+  id          String             @id @default(cuid())
+  templateId  String
+  template    FormTemplate       @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  order       Int
+  code        String?
+  title       String
+  parameter   String
+  criticality String?
+  answers     InspectionAnswer[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@unique([templateId, order])
+}
+
+model Inspection {
+  id          String             @id @default(cuid())
+  templateId  String
+  template    FormTemplate       @relation(fields: [templateId], references: [id])
+  operatorId  String?
+  operator    User?              @relation(fields: [operatorId], references: [id])
+  operatorName String
+  turn        String
+  date        DateTime
+  completion  Int                @default(0)
+  issueCount  Int                @default(0)
+  answers     InspectionAnswer[]
+  findings    Finding[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([templateId, date])
+  @@index([operatorId])
+}
+
+model InspectionAnswer {
+  id           String                 @id @default(cuid())
+  inspectionId String
+  inspection   Inspection             @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  itemId       String
+  item         FormItem               @relation(fields: [itemId], references: [id])
+  status       InspectionAnswerStatus
+  note         String?
+  finding      Finding?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  @@unique([inspectionId, itemId])
+}
+
+model Finding {
+  id             String            @id @default(cuid())
+  inspectionId   String
+  inspection     Inspection        @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  answerId       String            @unique
+  answer         InspectionAnswer  @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  problem        String
+  suggestedAction String?
+  responsibleId  String?
+  responsible    User?             @relation("FindingResponsible", fields: [responsibleId], references: [id])
+  status         FindingStatus     @default(OPEN)
+  dueDate        DateTime?
+  closedAt       DateTime?
+  conclusion     String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([status])
+  @@index([responsibleId])
+}
