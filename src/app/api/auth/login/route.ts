@@ -16,6 +16,13 @@ export async function POST(request: Request) {
       where: {
         username,
       },
+      select: {
+        name: true,
+        username: true,
+        passwordHash: true,
+        role: true,
+        active: true,
+      },
     });
 
     if (!user || !user.active || !verifyPassword(password, user.passwordHash)) {
