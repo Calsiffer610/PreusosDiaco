@@ -4,12 +4,12 @@ Prototipo Next.js para digitalizar formularios operativos de la compania.
 
 ## Acceso
 
-- Usuario: `generic`
-- Contrasena: `generic`
+- El acceso se realiza solo con usuarios creados en la base de datos.
+- Crea usuarios desde el modulo `Usuarios` o directamente desde Prisma Studio.
 
 ## Flujo implementado
 
-1. Login con credenciales quemadas en `src/constants/auth.ts`.
+1. Login con usuarios guardados en PostgreSQL.
 2. Pantalla de inicio generica con acceso principal a `FORMULARIOS`.
 3. Catalogo de formularios con el primer formato `PRE USOS TREN`.
 4. Formulario digital de inspeccion de pre-uso con operador, turno, fecha, respuestas, hallazgos y observaciones.

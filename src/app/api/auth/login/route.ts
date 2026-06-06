@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { AUTH_USER } from "@/constants/auth";
+import { APP_MESSAGES } from "@/constants/messages";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
 
@@ -11,16 +11,6 @@ export async function POST(request: Request) {
   const username = body.username?.trim().toLowerCase() ?? "";
   const password = body.password ?? "";
 
-  if (username === AUTH_USER.username && password === AUTH_USER.password) {
-    return NextResponse.json({
-      user: {
-        name: AUTH_USER.name,
-        username: AUTH_USER.username,
-        role: AUTH_USER.role,
-      },
-    });
-  }
-
   try {
     const user = await prisma.user.findUnique({
       where: {
@@ -29,7 +19,7 @@ export async function POST(request: Request) {
     });
 
     if (!user || !user.active || !verifyPassword(password, user.passwordHash)) {
-      return NextResponse.json({ error: "Usuario o contrasena invalida." }, { status: 401 });
+      return NextResponse.json({ error: APP_MESSAGES.auth.invalidCredentials }, { status: 401 });
     }
 
     return NextResponse.json({
@@ -41,7 +31,7 @@ export async function POST(request: Request) {
     });
   } catch {
     return NextResponse.json(
-      { error: "No se pudo validar contra la base de datos. generic/generic sigue disponible." },
+      { error: APP_MESSAGES.auth.databaseUnavailable },
       { status: 500 },
     );
   }

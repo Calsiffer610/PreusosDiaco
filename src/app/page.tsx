@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { AUTH_USER } from "@/constants/auth";
+import { APP_MESSAGES } from "@/constants/messages";
 import { companyForms, productVision } from "@/data/forms";
 
 type Screen = "home" | "forms" | "pre-use" | "saved-detail" | "users";
@@ -42,16 +42,22 @@ const statusLabels: Record<Exclude<InspectionStatus, "">, string> = {
   na: "No aplica",
 };
 
+async function readApiError(response: Response, fallback: string) {
+  try {
+    const data = (await response.json()) as { error?: string };
+
+    return data.error ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginError, setLoginError] = useState("");
-  const [sessionUser, setSessionUser] = useState<SessionUser>({
-    name: AUTH_USER.name,
-    username: AUTH_USER.username,
-    role: AUTH_USER.role,
-  });
+  const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
   const [screen, setScreen] = useState<Screen>("home");
-  const [operator, setOperator] = useState<string>(AUTH_USER.name);
+  const [operator, setOperator] = useState("");
   const [turn, setTurn] = useState("T1");
   const [inspectionDate, setInspectionDate] = useState(new Date().toISOString().slice(0, 10));
   const [responses, setResponses] = useState<Record<number, InspectionStatus>>({});
@@ -110,14 +116,15 @@ export default function Home() {
       const data = (await response.json()) as { user?: SessionUser; error?: string };
 
       if (!response.ok || !data.user) {
-        throw new Error(data.error ?? "Usuario o contrasena invalida.");
+        throw new Error(data.error ?? APP_MESSAGES.auth.invalidCredentials);
       }
 
       setSessionUser(data.user);
+      setOperator(data.user.name);
       setIsLoggedIn(true);
       setLoginError("");
     } catch (error) {
-      setLoginError(error instanceof Error ? error.message : "Usuario o contrasena invalida.");
+      setLoginError(error instanceof Error ? error.message : APP_MESSAGES.auth.invalidCredentials);
     }
   }
 
@@ -159,15 +166,15 @@ export default function Home() {
 
     try {
       const response = await fetch("/api/users");
-      const data = (await response.json()) as { users?: UserRecord[]; error?: string };
 
       if (!response.ok) {
-        throw new Error(data.error ?? "No se pudieron cargar los usuarios.");
+        throw new Error(await readApiError(response, APP_MESSAGES.users.loadError));
       }
 
+      const data = (await response.json()) as { users?: UserRecord[] };
       setUsers(data.users ?? []);
     } catch (error) {
-      setUsersMessage(error instanceof Error ? error.message : "No se pudieron cargar los usuarios.");
+      setUsersMessage(error instanceof Error ? error.message : APP_MESSAGES.users.loadError);
     } finally {
       setIsLoadingUsers(false);
     }
@@ -177,7 +184,8 @@ export default function Home() {
     event.preventDefault();
     setUsersMessage("");
 
-    const formData = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const formData = new FormData(formElement);
     const payload = {
       name: String(formData.get("name") ?? ""),
       username: String(formData.get("username") ?? ""),
@@ -194,17 +202,17 @@ export default function Home() {
         },
         body: JSON.stringify(payload),
       });
-      const data = (await response.json()) as { user?: UserRecord; error?: string };
 
       if (!response.ok) {
-        throw new Error(data.error ?? "No se pudo crear el usuario.");
+        throw new Error(await readApiError(response, APP_MESSAGES.users.createError));
       }
 
-      event.currentTarget.reset();
+      const data = (await response.json()) as { user?: UserRecord };
+      formElement.reset();
       setUsers((current) => (data.user ? [data.user, ...current] : current));
-      setUsersMessage("Usuario creado correctamente en la base de datos.");
+      setUsersMessage(APP_MESSAGES.users.createSuccess);
     } catch (error) {
-      setUsersMessage(error instanceof Error ? error.message : "No se pudo crear el usuario.");
+      setUsersMessage(error instanceof Error ? error.message : APP_MESSAGES.users.createError);
     }
   }
 
@@ -221,14 +229,14 @@ export default function Home() {
           <form onSubmit={handleLogin} className="login-form">
             <label>
               Usuario
-              <input name="username" placeholder="generic o usuario creado" autoComplete="username" />
+              <input name="username" placeholder="usuario creado" autoComplete="username" />
             </label>
             <label>
               Contrasena
               <input
                 name="password"
                 type="password"
-                placeholder="generic o contrasena creada"
+                placeholder="contrasena del usuario"
                 autoComplete="current-password"
               />
             </label>
@@ -264,16 +272,13 @@ export default function Home() {
         </nav>
 
         <div className="user-card">
-          <span>{sessionUser.role}</span>
-          <strong>{sessionUser.name}</strong>
+          <span>{sessionUser?.role}</span>
+          <strong>{sessionUser?.name}</strong>
           <button
             onClick={() => {
               setIsLoggedIn(false);
-              setSessionUser({
-                name: AUTH_USER.name,
-                username: AUTH_USER.username,
-                role: AUTH_USER.role,
-              });
+              setSessionUser(null);
+              setOperator("");
               setScreen("home");
             }}
           >

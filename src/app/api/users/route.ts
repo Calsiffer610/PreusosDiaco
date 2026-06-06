@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { APP_MESSAGES } from "@/constants/messages";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/password";
 
@@ -22,7 +23,7 @@ export async function GET() {
     return NextResponse.json({ users });
   } catch {
     return NextResponse.json(
-      { error: "No se pudieron cargar los usuarios. Revisa DATABASE_URL y la base de datos." },
+      { error: APP_MESSAGES.users.loadError },
       { status: 500 },
     );
   }
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
 
     if (!name || !username || !password) {
       return NextResponse.json(
-        { error: "Nombre, usuario y contrasena son obligatorios." },
+        { error: APP_MESSAGES.users.requiredFields },
         { status: 400 },
       );
     }
@@ -75,13 +76,13 @@ export async function POST(request: Request) {
 
     if (message.includes("Unique constraint")) {
       return NextResponse.json(
-        { error: "Ya existe un usuario con ese usuario o correo." },
+        { error: APP_MESSAGES.users.duplicatedUser },
         { status: 409 },
       );
     }
 
     return NextResponse.json(
-      { error: "No se pudo crear el usuario. Revisa DATABASE_URL y la base de datos." },
+      { error: APP_MESSAGES.users.createError },
       { status: 500 },
     );
   }
