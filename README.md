@@ -24,7 +24,13 @@ Esto permite avanzar lento y suave: capturar, guardar y visualizar registros sin
 
 ## Base de datos con Prisma
 
-El proyecto ya tiene Prisma configurado para PostgreSQL.
+El proyecto ya tiene Prisma configurado para PostgreSQL con un esquema simple:
+
+- `User`: usuarios basicos con `username` y contrasena guardada como hash.
+- `FormTemplate`: tipos de formulario disponibles.
+- `FormSubmission`: formularios guardados, con las respuestas completas en un campo `Json`.
+
+La idea por ahora es crear usuarios, permitir login basico y guardar formularios sin modelar todavia permisos avanzados, acciones correctivas ni auditoria.
 
 1. Copia `.env.example` a `.env`.
 2. Reemplaza `DATABASE_URL` con tus credenciales reales de PostgreSQL.

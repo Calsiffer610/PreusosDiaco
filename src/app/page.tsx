@@ -4,8 +4,22 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AUTH_USER } from "@/constants/auth";
 import { companyForms, productVision } from "@/data/forms";
 
-type Screen = "home" | "forms" | "pre-use" | "saved-detail";
+type Screen = "home" | "forms" | "pre-use" | "saved-detail" | "users";
 type InspectionStatus = "ok" | "issue" | "na" | "";
+type UserRecord = {
+  id: string;
+  name: string;
+  username: string;
+  email: string | null;
+  role: string;
+  active: boolean;
+  createdAt: string;
+};
+type SessionUser = {
+  name: string;
+  username: string;
+  role: string;
+};
 type SavedInspection = {
   id: string;
   formId: string;
@@ -31,6 +45,11 @@ const statusLabels: Record<Exclude<InspectionStatus, "">, string> = {
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const [sessionUser, setSessionUser] = useState<SessionUser>({
+    name: AUTH_USER.name,
+    username: AUTH_USER.username,
+    role: AUTH_USER.role,
+  });
   const [screen, setScreen] = useState<Screen>("home");
   const [operator, setOperator] = useState<string>(AUTH_USER.name);
   const [turn, setTurn] = useState("T1");
@@ -39,6 +58,9 @@ export default function Home() {
   const [notes, setNotes] = useState<Record<number, string>>({});
   const [savedInspections, setSavedInspections] = useState<SavedInspection[]>([]);
   const [selectedInspection, setSelectedInspection] = useState<SavedInspection | null>(null);
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [usersMessage, setUsersMessage] = useState("");
 
   const form = companyForms[0];
   const completedItems = useMemo(
@@ -65,19 +87,38 @@ export default function Home() {
     }
   }, []);
 
-  function handleLogin(event: FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    if (isLoggedIn && screen === "users") {
+      void loadUsers();
+    }
+  }, [isLoggedIn, screen]);
+
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const username = String(formData.get("username") ?? "");
     const password = String(formData.get("password") ?? "");
 
-    if (username === AUTH_USER.username && password === AUTH_USER.password) {
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = (await response.json()) as { user?: SessionUser; error?: string };
+
+      if (!response.ok || !data.user) {
+        throw new Error(data.error ?? "Usuario o contrasena invalida.");
+      }
+
+      setSessionUser(data.user);
       setIsLoggedIn(true);
       setLoginError("");
-      return;
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : "Usuario o contrasena invalida.");
     }
-
-    setLoginError("Usuario o contrasena invalida. Usa generic / generic.");
   }
 
   function updateResponse(itemId: number, value: InspectionStatus) {
@@ -112,6 +153,61 @@ export default function Home() {
     setScreen("saved-detail");
   }
 
+  async function loadUsers() {
+    setIsLoadingUsers(true);
+    setUsersMessage("");
+
+    try {
+      const response = await fetch("/api/users");
+      const data = (await response.json()) as { users?: UserRecord[]; error?: string };
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "No se pudieron cargar los usuarios.");
+      }
+
+      setUsers(data.users ?? []);
+    } catch (error) {
+      setUsersMessage(error instanceof Error ? error.message : "No se pudieron cargar los usuarios.");
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  }
+
+  async function createUser(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setUsersMessage("");
+
+    const formData = new FormData(event.currentTarget);
+    const payload = {
+      name: String(formData.get("name") ?? ""),
+      username: String(formData.get("username") ?? ""),
+      password: String(formData.get("password") ?? ""),
+      email: String(formData.get("email") ?? ""),
+      role: String(formData.get("role") ?? "OPERADOR"),
+    };
+
+    try {
+      const response = await fetch("/api/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = (await response.json()) as { user?: UserRecord; error?: string };
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "No se pudo crear el usuario.");
+      }
+
+      event.currentTarget.reset();
+      setUsers((current) => (data.user ? [data.user, ...current] : current));
+      setUsersMessage("Usuario creado correctamente en la base de datos.");
+    } catch (error) {
+      setUsersMessage(error instanceof Error ? error.message : "No se pudo crear el usuario.");
+    }
+  }
+
   if (!isLoggedIn) {
     return (
       <main className="login-page">
@@ -125,16 +221,14 @@ export default function Home() {
           <form onSubmit={handleLogin} className="login-form">
             <label>
               Usuario
-              <input name="username" 
-              // placeholder="generic" 
-              autoComplete="username" />
+              <input name="username" placeholder="generic o usuario creado" autoComplete="username" />
             </label>
             <label>
               Contrasena
               <input
                 name="password"
                 type="password"
-                // placeholder="generic"
+                placeholder="generic o contrasena creada"
                 autoComplete="current-password"
               />
             </label>
@@ -159,19 +253,27 @@ export default function Home() {
             Inicio
           </button>
           <button
-            className={screen !== "home" ? "active" : ""}
+            className={screen === "forms" || screen === "pre-use" || screen === "saved-detail" ? "active" : ""}
             onClick={() => setScreen("forms")}
           >
             Formularios
           </button>
+          <button className={screen === "users" ? "active" : ""} onClick={() => setScreen("users")}>
+            Usuarios
+          </button>
         </nav>
 
         <div className="user-card">
-          <span>{AUTH_USER.role}</span>
-          <strong>{AUTH_USER.name}</strong>
+          <span>{sessionUser.role}</span>
+          <strong>{sessionUser.name}</strong>
           <button
             onClick={() => {
               setIsLoggedIn(false);
+              setSessionUser({
+                name: AUTH_USER.name,
+                username: AUTH_USER.username,
+                role: AUTH_USER.role,
+              });
               setScreen("home");
             }}
           >
@@ -192,6 +294,16 @@ export default function Home() {
             savedInspections={savedInspections}
             onOpenForm={() => setScreen("pre-use")}
             onViewSaved={openSavedInspection}
+          />
+        ) : null}
+
+        {screen === "users" ? (
+          <UsersPanel
+            users={users}
+            isLoading={isLoadingUsers}
+            message={usersMessage}
+            onCreateUser={createUser}
+            onRefresh={loadUsers}
           />
         ) : null}
 
@@ -376,6 +488,99 @@ function HomeDashboard({ onOpenForms }: { onOpenForms: () => void }) {
             <p>{item.description}</p>
           </article>
         ))}
+      </section>
+    </section>
+  );
+}
+
+function UsersPanel({
+  users,
+  isLoading,
+  message,
+  onCreateUser,
+  onRefresh,
+}: {
+  users: UserRecord[];
+  isLoading: boolean;
+  message: string;
+  onCreateUser: (event: FormEvent<HTMLFormElement>) => void;
+  onRefresh: () => void;
+}) {
+  return (
+    <section className="stack">
+      <div className="hero-card">
+        <div>
+          <p className="eyebrow">Base de datos</p>
+          <h1>Usuarios</h1>
+          <p className="muted">
+            Crea usuarios simples en PostgreSQL y visualizalos aqui o desde Prisma Studio.
+          </p>
+        </div>
+        <button onClick={onRefresh}>{isLoading ? "Cargando..." : "Actualizar"}</button>
+      </div>
+
+      <form className="user-form" onSubmit={onCreateUser}>
+        <label>
+          Nombre
+          <input name="name" placeholder="Nombre del usuario" required />
+        </label>
+        <label>
+          Usuario
+          <input name="username" placeholder="operador1" required />
+        </label>
+        <label>
+          Contrasena
+          <input name="password" type="password" placeholder="Contrasena inicial" required />
+        </label>
+        <label>
+          Correo opcional
+          <input name="email" type="email" placeholder="usuario@empresa.com" />
+        </label>
+        <label>
+          Rol
+          <select name="role" defaultValue="OPERADOR">
+            <option value="OPERADOR">Operador</option>
+            <option value="SUPERVISOR">Supervisor</option>
+            <option value="ADMIN">Administrador</option>
+          </select>
+        </label>
+        <button type="submit">Crear usuario</button>
+      </form>
+
+      {message ? <div className="info-state">{message}</div> : null}
+
+      <section className="saved-section">
+        <div className="section-heading">
+          <p className="eyebrow">Registros</p>
+          <h2>Usuarios creados</h2>
+          <p className="muted">
+            Esta lista viene de la tabla `User` de la base de datos, no de `localStorage`.
+          </p>
+        </div>
+
+        {users.length === 0 ? (
+          <div className="empty-state">
+            No hay usuarios cargados todavia. Crea uno o revisa la conexion a PostgreSQL.
+          </div>
+        ) : (
+          <div className="saved-list">
+            {users.map((user) => (
+              <article className="saved-card" key={user.id}>
+                <div>
+                  <h3>{user.name}</h3>
+                  <p>
+                    @{user.username} · {user.role}
+                  </p>
+                  <small>
+                    {user.email ?? "Sin correo"} · Creado{" "}
+                    {new Date(user.createdAt).toLocaleString("es-CO")}
+                  </small>
+                </div>
+                <div className="status-pill">{user.active ? "Activo" : "Inactivo"}</div>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
     </section>
   );

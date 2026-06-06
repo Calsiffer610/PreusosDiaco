@@ -194,7 +194,9 @@ p {
 .form-card,
 .progress-card,
 .inspection-item,
+.user-form,
 .saved-card,
+.info-state,
 .empty-state,
 .vision-grid article {
   background: rgba(255, 255, 255, 0.88);
@@ -232,7 +234,9 @@ p {
 .vision-grid article,
 .inspection-item,
 .form-card,
+.user-form,
 .saved-card,
+.info-state,
 .empty-state {
   padding: 1.25rem;
 }
@@ -296,6 +300,22 @@ p {
 .empty-state {
   color: var(--muted);
   line-height: 1.6;
+}
+
+.info-state {
+  color: var(--primary-dark);
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.user-form {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.user-form button {
+  align-self: end;
 }
 
 .form-card-stats {
@@ -424,6 +444,7 @@ p {
   }
 
   .form-card,
+  .user-form,
   .saved-card,
   .inspection-item,
   .hero-card {
