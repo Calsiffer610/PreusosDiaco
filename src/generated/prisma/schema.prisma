@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  username     String   @unique
+  passwordHash String
+  email        String?  @unique
+  role         String   @default("OPERADOR")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model FormTemplate {
+  id          String           @id @default(cuid())
+  slug        String           @unique
+  title       String
+  description String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  submissions FormSubmission[]
+}
+
+model FormSubmission {
+  id           String        @id @default(cuid())
+  templateId   String?
+  template     FormTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  formTitle    String
+  operatorName String
+  turn         String
+  date         DateTime
+  completion   Int           @default(0)
+  issueCount   Int           @default(0)
+  data         Json
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([templateId])
+  @@index([date])
+}
