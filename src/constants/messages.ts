@@ -11,4 +11,10 @@ export const APP_MESSAGES = {
     requiredFields: "Nombre, usuario y contrasena son obligatorios.",
     duplicatedUser: "Ya existe un usuario con ese usuario o correo.",
   },
+  forms: {
+    loadError: "No pude cargar los formularios guardados. Revisa la conexion con la base de datos.",
+    createSuccess: "Formulario guardado correctamente en la base de datos.",
+    createError: "No pude guardar el formulario. Intenta nuevamente.",
+    requiredFields: "Formulario, operador, turno y fecha son obligatorios.",
+  },
 } as const;

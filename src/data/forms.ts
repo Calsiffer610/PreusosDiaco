@@ -20,7 +20,7 @@ export type CompanyForm = {
 export const companyForms: CompanyForm[] = [
   {
     id: "pre-usos-tren",
-    title: "PRE USOS TREN",
+    title: "PRE USOS TREN 2",
     source: "PRE USOS TREN.xlsx",
     area: "Laminacion",
     section: "Tren Laminador T2",
@@ -84,72 +84,7 @@ export const companyForms: CompanyForm[] = [
       },
     ],
   },
-  {
-    id: "pre-usos-tren-2",
-    title: "PRE USOS TREN 2",
-    source: "PRE USOS TREN.xlsx",
-    area: "Laminacion-2",
-    section: "Tren Laminador T2-2",
-    equipment: "Oxicorte No. 1-2",
-    cadence: "Diario por turno",
-    status: "Prototipo",
-    items: [
-      {
-        id: 1,
-        verify: "Revisar y limpiar boquilla",
-        parameter: "La espiga no debe estar obstruida con escoria.",
-        criticality: "Alta",
-      },
-      {
-        id: 2,
-        verify: "Tuerca de sujecion de boquilla",
-        parameter: "La tuerca debe estar correctamente ajustada y sin fugas.",
-        criticality: "Media",
-      },
-      {
-        id: 3,
-        verify: "Mangueras",
-        parameter: "La union de mangueras debe cumplir la distancia minima definida.",
-        criticality: "Media",
-      },
-      {
-        id: 4,
-        verify: "Uniones",
-        parameter: "Usar abrazaderas y arpones; separar uniones de oxigeno y gas.",
-        criticality: "Media",
-      },
-      {
-        id: 5,
-        verify: "Antorcha o cana",
-        parameter: "Debe estar limpia, en buen estado y sin fugas.",
-        criticality: "Alta",
-      },
-      {
-        id: 6,
-        verify: "Manometros",
-        parameter: "Verificar estado y funcionamiento de conexiones, valvulas y manometros.",
-        criticality: "Alta",
-      },
-      {
-        id: 7,
-        verify: "Arrestadores de llama",
-        parameter: "Debe existir arrestador de llama en gas y oxigeno.",
-        criticality: "Media",
-      },
-      {
-        id: 8,
-        verify: "Pin de accionamiento",
-        parameter: "Debe accionar correctamente, estar limpio y sin fugas.",
-        criticality: "Media",
-      },
-      {
-        id: 9,
-        verify: "Inspeccion general de fugas",
-        parameter: "Revisar fugas en valvulas, racores, red de gas, oxigeno y uniones.",
-        criticality: "Alta",
-      },
-    ],
-  },
+
 ];
 
 export const productVision = [

@@ -15,9 +15,9 @@ El proyecto ya tiene:
 - ORM `Prisma` configurado con PostgreSQL.
 - Visualizador de base de datos con `Prisma Studio`.
 - Formulario inicial `PRE USOS TREN`.
-- Guardado temporal de formularios en `localStorage`.
+- Guardado de formularios en PostgreSQL usando `FormSubmission`.
 
-Importante: los usuarios ya van a base de datos. Las respuestas del formulario todavia no se estan guardando en PostgreSQL; por ahora viven temporalmente en el navegador.
+Importante: usuarios, login y formularios guardados ya pasan por PostgreSQL.
 
 ## Tecnologias
 
@@ -69,7 +69,7 @@ Actualmente tiene tres modelos simples:
 - `FormTemplate`: definicion general de formularios disponibles.
 - `FormSubmission`: respuestas guardadas de formularios, usando un campo `Json`.
 
-Por ahora solo `User` se usa activamente desde la interfaz. `FormSubmission` esta preparado para el siguiente paso: guardar respuestas del formulario en PostgreSQL.
+`User` se usa para login y administracion basica de usuarios. `FormSubmission` se usa para guardar las respuestas completas del formulario en PostgreSQL.
 
 ## Descargar el Proyecto
 
@@ -215,7 +215,7 @@ Para entrar:
 6. Desde el home puede ir a `Formularios` o `Usuarios`.
 7. En `Usuarios`, puede crear nuevos usuarios en PostgreSQL.
 8. En `Formularios`, puede diligenciar el formulario `PRE USOS TREN`.
-9. Las respuestas del formulario se guardan temporalmente en `localStorage`.
+9. Las respuestas del formulario se guardan en PostgreSQL en la tabla `FormSubmission`.
 
 ## Endpoints Principales
 
@@ -230,6 +230,13 @@ Usuarios:
 ```text
 GET /api/users
 POST /api/users
+```
+
+Formularios guardados:
+
+```text
+GET /api/form-submissions
+POST /api/form-submissions
 ```
 
 ## Mensajes en Espanol
@@ -327,6 +334,9 @@ La compania parece tener una operacion industrial donde los pre-usos son control
 
 ## Siguiente Paso Tecnico
 
-El siguiente paso recomendado es conectar el boton de guardar formulario con la tabla `FormSubmission`.
+El siguiente paso recomendado es mejorar la consulta de formularios guardados:
 
-Hoy el formulario se guarda en `localStorage`. La siguiente version deberia guardar en PostgreSQL usando Prisma, para que los registros esten disponibles desde cualquier equipo y no solo desde el navegador local.
+- Filtros por fecha, operador y turno.
+- Vista de detalle mas clara por item.
+- Exportacion a PDF o Excel.
+- Edicion o anulacion controlada de registros.

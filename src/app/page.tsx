@@ -34,8 +34,6 @@ type SavedInspection = {
   notes: Record<number, string>;
 };
 
-const SAVED_INSPECTIONS_KEY = "miller.savedInspections";
-
 const statusLabels: Record<Exclude<InspectionStatus, "">, string> = {
   ok: "Cumple",
   issue: "Hallazgo",
@@ -64,6 +62,8 @@ export default function Home() {
   const [notes, setNotes] = useState<Record<number, string>>({});
   const [savedInspections, setSavedInspections] = useState<SavedInspection[]>([]);
   const [selectedInspection, setSelectedInspection] = useState<SavedInspection | null>(null);
+  const [formsMessage, setFormsMessage] = useState("");
+  const [isSavingInspection, setIsSavingInspection] = useState(false);
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [usersMessage, setUsersMessage] = useState("");
@@ -80,22 +80,14 @@ export default function Home() {
   const completion = Math.round((completedItems / form.items.length) * 100);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(SAVED_INSPECTIONS_KEY);
-
-    if (!saved) {
-      return;
-    }
-
-    try {
-      setSavedInspections(JSON.parse(saved) as SavedInspection[]);
-    } catch {
-      window.localStorage.removeItem(SAVED_INSPECTIONS_KEY);
-    }
-  }, []);
-
-  useEffect(() => {
     if (isLoggedIn && screen === "users") {
       void loadUsers();
+    }
+  }, [isLoggedIn, screen]);
+
+  useEffect(() => {
+    if (isLoggedIn && screen === "forms") {
+      void loadFormSubmissions();
     }
   }, [isLoggedIn, screen]);
 
@@ -132,27 +124,64 @@ export default function Home() {
     setResponses((current) => ({ ...current, [itemId]: value }));
   }
 
-  function saveInspection() {
-    const savedInspection: SavedInspection = {
-      id: crypto.randomUUID(),
+  async function loadFormSubmissions() {
+    setFormsMessage("");
+
+    try {
+      const response = await fetch("/api/form-submissions");
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response, APP_MESSAGES.forms.loadError));
+      }
+
+      const data = (await response.json()) as { submissions?: SavedInspection[] };
+      setSavedInspections(data.submissions ?? []);
+    } catch (error) {
+      setFormsMessage(error instanceof Error ? error.message : APP_MESSAGES.forms.loadError);
+    }
+  }
+
+  async function saveInspection() {
+    setFormsMessage("");
+    setIsSavingInspection(true);
+
+    const payload = {
       formId: form.id,
       formTitle: form.title,
       operator,
       turn,
       date: inspectionDate,
-      savedAt: new Date().toISOString(),
       completion,
       issueCount,
       responses,
       notes,
     };
-    const nextSavedInspections = [savedInspection, ...savedInspections];
 
-    setSavedInspections(nextSavedInspections);
-    window.localStorage.setItem(SAVED_INSPECTIONS_KEY, JSON.stringify(nextSavedInspections));
-    setResponses({});
-    setNotes({});
-    setScreen("forms");
+    try {
+      const response = await fetch("/api/form-submissions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response, APP_MESSAGES.forms.createError));
+      }
+
+      const data = (await response.json()) as { submission?: SavedInspection };
+
+      setSavedInspections((current) => (data.submission ? [data.submission, ...current] : current));
+      setResponses({});
+      setNotes({});
+      setFormsMessage(APP_MESSAGES.forms.createSuccess);
+      setScreen("forms");
+    } catch (error) {
+      setFormsMessage(error instanceof Error ? error.message : APP_MESSAGES.forms.createError);
+    } finally {
+      setIsSavingInspection(false);
+    }
   }
 
   function openSavedInspection(inspection: SavedInspection) {
@@ -297,8 +326,10 @@ export default function Home() {
             completion={completion}
             issueCount={issueCount}
             savedInspections={savedInspections}
+            message={formsMessage}
             onOpenForm={() => setScreen("pre-use")}
             onViewSaved={openSavedInspection}
+            onRefresh={loadFormSubmissions}
           />
         ) : null}
 
@@ -400,8 +431,8 @@ export default function Home() {
               ))}
             </div>
 
-            <button className="submit-button" onClick={saveInspection}>
-              Guardar inspeccion temporal
+            <button className="submit-button" onClick={saveInspection} disabled={isSavingInspection}>
+              {isSavingInspection ? "Guardando..." : "Guardar inspeccion en base de datos"}
             </button>
           </section>
         ) : null}
@@ -414,14 +445,14 @@ export default function Home() {
 
             <div className="hero-card">
               <div>
-                <p className="eyebrow">Registro temporal</p>
+                <p className="eyebrow">Registro en base de datos</p>
                 <h1>{selectedInspection.formTitle}</h1>
                 <p className="muted">
                   {selectedInspection.operator} / {selectedInspection.turn} /{" "}
                   {selectedInspection.date}
                 </p>
               </div>
-              <div className="status-pill">Guardado local</div>
+              <div className="status-pill">PostgreSQL</div>
             </div>
 
             <div className="progress-card">
@@ -431,7 +462,7 @@ export default function Home() {
               </div>
               <div>
                 <strong>{selectedInspection.issueCount} hallazgos</strong>
-                <p>Disponible temporalmente en este navegador</p>
+                <p>Disponible desde la base de datos</p>
               </div>
             </div>
 
@@ -595,14 +626,18 @@ function FormsList({
   completion,
   issueCount,
   savedInspections,
+  message,
   onOpenForm,
   onViewSaved,
+  onRefresh,
 }: {
   completion: number;
   issueCount: number;
   savedInspections: SavedInspection[];
+  message: string;
   onOpenForm: () => void;
   onViewSaved: (inspection: SavedInspection) => void;
+  onRefresh: () => void;
 }) {
   return (
     <section className="stack">
@@ -634,20 +669,25 @@ function FormsList({
         </article>
       ))}
 
+      {message ? <div className="info-state">{message}</div> : null}
+
       <section className="saved-section">
         <div className="section-heading">
-          <p className="eyebrow">Temporal</p>
+          <p className="eyebrow">Base de datos</p>
           <h2>Formularios guardados disponibles</h2>
           <p className="muted">
-            Estos registros viven por ahora en este navegador. Cuando conectemos base de datos,
-            esta lista se alimentara desde el servidor.
+            Estos registros vienen de PostgreSQL por medio de Prisma.
           </p>
         </div>
+
+        <button className="ghost-button" onClick={onRefresh}>
+          Actualizar formularios guardados
+        </button>
 
         {savedInspections.length === 0 ? (
           <div className="empty-state">
             Todavia no hay formularios guardados. Abre el pre-uso, responde algunos puntos y
-            guardalo temporalmente.
+            guardalo en la base de datos.
           </div>
         ) : (
           <div className="saved-list">
